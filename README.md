@@ -18,7 +18,7 @@ sudo apt-get install -y build-essential python3
 and then node-gyp which is a build tool for node,
 
 ```sh
-npm install -g node-gyp
+npm install -g node-gyp node-pre-gy
 ```
 
 finally wrtc, which is the webRTC implementation for node,

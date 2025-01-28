@@ -1,49 +1,32 @@
-import chalk from 'chalk';
-import { promptMainMenu } from './utils/prompts.ts';
-import { WebRTC } from './network/webrtc.ts';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+import { Config } from './config.ts';
+import { Game } from './core/game.ts';
+import { pressAnyKey } from './utils/prompts.js';
 
 async function main() {
+  // Parse CLI arguments
+  const argv = yargs(hideBin(process.argv))
+    .option('debug', {
+      alias: 'd',
+      type: 'boolean',
+      description: 'Enable debug logs',
+    })
+    .help()
+    .argv;
+
+  // Set debug mode in the global Config
+  Config.debug = (argv as any).debug || false;
+
   console.clear();
-  console.log(chalk.blueBright('JattleShips!'));
+  console.log('JattleShips!');
 
-  const choice = await promptMainMenu();
-  if (choice === 'host') {
-    console.log(chalk.green('You chose to host a game.'));
-    const webrtc = new WebRTC(true, (message) => {
-      console.log(chalk.yellow('Message from opponent:'), message);
-    });
+  await pressAnyKey('Press ENTER key to continue...');
 
-    console.log(chalk.blue('Generating join code...'));
-    const joinCode = await webrtc.start();
-    console.log(
-      chalk.blueBright('Share this join code with your opponent:'),
-      joinCode
-    );
-
-    await new Promise((resolve) => {
-      process.stdin.once('data', () => resolve(true));
-    });
-
-    console.log(chalk.green('Connection established!'));
-    // TODO: Gameplay logic for host
-  } else if (choice === 'join') {
-    console.log(chalk.green('You chose to join a game.'));
-    const webrtc = new WebRTC(false, (message) => {
-      console.log(chalk.yellow('Message from opponent:'), message);
-    });
-
-    const joinCode = await promptMainMenu();
-    console.log(chalk.blue('Joining the game...'));
-    await webrtc.start();
-    webrtc.accept(joinCode);
-
-    console.log(chalk.green('Connection established!'));
-    // TODO: Gameplay logic for joiner
-  } else {
-    console.log(chalk.red('Exiting game. Goodbye!'));
-  }
+  const game = new Game();
+  await game.start();
 }
 
 main().catch((err) => {
-  console.error(chalk.red('An error occurred:'), err);
+  console.error('An error occurred:', err);
 });
