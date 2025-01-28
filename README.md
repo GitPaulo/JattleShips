@@ -31,4 +31,4 @@ npm install wrtc
 
 This makes sense, I swear
 
-![alt text](image.png)
+![alt text](plan.png)
