@@ -96,14 +96,21 @@ export async function promptCopyToClipboard(value: string): Promise<void> {
   }
 }
 
-export async function promptShipPlacement(ship: ShipType): Promise<{ x: string; y: number; orientation: 'horizontal' | 'vertical' }> {
-  console.log(chalk.green(`Please place your ${ship.name} (${ship.length} cells long)`));
+export async function promptShipPlacement(
+  ship: ShipType
+): Promise<{ x: string; y: number; orientation: 'horizontal' | 'vertical' }> {
+  console.log(
+    chalk.green(`Please place your ${ship.name} (${ship.length} cells long)`)
+  );
 
   const { position } = await prompts({
     type: 'text',
     name: 'position',
     message: `Enter starting coordinate (e.g., A5) for your ${ship.name}:`,
-    validate: (value) => /^[A-Ja-j][1-9]$|^[A-Ja-j]10$/.test(value) ? true : 'Invalid format. Use A1 - J10.',
+    validate: (value) =>
+      /^[A-Ja-j][1-9]$|^[A-Ja-j]10$/.test(value)
+        ? true
+        : 'Invalid format. Use A1 - J10.',
   });
 
   const x = position[0].toUpperCase(); // A-J
@@ -136,11 +143,38 @@ export async function promptNextPlacement(): Promise<'next' | 'undo'> {
   return action;
 }
 
-export async function countDownMessage(message: string, duration: number): Promise<void> {
+export async function countDownMessage(
+  message: string,
+  duration: number
+): Promise<void> {
   console.log(chalk.yellow(message));
 
   for (let i = duration; i > 0; i--) {
     console.log(chalk.yellowBright(i.toString()));
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
+}
+
+export async function promptAttackCoordinates(): Promise<{
+  x: number;
+  y: number;
+}> {
+  const { x, y } = await prompts([
+    {
+      type: 'text',
+      name: 'x',
+      message: 'Enter attack column (A-J):',
+      validate: (value) =>
+        /^[A-Ja-j]$/.test(value) ? true : 'Invalid column. Enter A-J.',
+    },
+    {
+      type: 'number',
+      name: 'y',
+      message: 'Enter attack row (1-10):',
+      validate: (value) =>
+        value >= 1 && value <= 10 ? true : 'Invalid row. Enter 1-10.',
+    },
+  ]);
+
+  return { x: x.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0), y: y - 1 };
 }
