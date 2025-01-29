@@ -1,53 +1,24 @@
-import Peer from 'simple-peer';
-// @ts-ignore
-import wrtc from 'wrtc';
+import { BasePeer } from './basePeer.ts';
 import { Config } from '../config.ts';
 
-type MessageHandler = (message: any) => void;
-
-export class Joiner {
-  private peer: Peer.Instance | null = null;
-  private onMessage: MessageHandler;
-
-  constructor(onMessage: MessageHandler) {
-    this.onMessage = onMessage;
+export class Joiner extends BasePeer {
+  constructor() {
+    super();
+    this.initializePeer(false);
   }
 
   public async start(offer: string): Promise<string> {
     if (Config.debug) console.log('Joiner: Starting WebRTC...');
 
     return new Promise((resolve, reject) => {
-      this.peer = new Peer({
-        wrtc,
-      });
+      if (!this.peer) return reject(new Error('Joiner: Peer not initialized.'));
 
       this.peer.on('signal', (data) => {
         if (Config.debug) console.log('Joiner: Answer signal generated:', data);
         if (data.type === 'answer') {
-          const encodedData = Buffer.from(JSON.stringify(data)).toString(
-            'base64'
-          );
+          const encodedData = Buffer.from(JSON.stringify(data)).toString('base64');
           resolve(encodedData);
         }
-      });
-
-      this.peer.on('connect', () => {
-        if (Config.debug) console.log('Joiner: Connected to initiator!');
-      });
-
-      this.peer.on('data', (data) => {
-        const message = JSON.parse(data.toString());
-        if (Config.debug) console.log('Joiner: Message received:', message);
-        this.onMessage(message);
-      });
-
-      this.peer.on('error', (err) => {
-        console.error('Joiner: Error occurred:', err);
-        reject(err);
-      });
-
-      this.peer.on('close', () => {
-        if (Config.debug) console.log('Joiner: Connection closed.');
       });
 
       this.accept(offer);
@@ -55,13 +26,10 @@ export class Joiner {
   }
 
   public accept(offer: string): void {
-    if (!this.peer) {
-      throw new Error('Joiner: Peer not initialized.');
-    }
+    if (!this.peer) throw new Error('Joiner: Peer not initialized.');
 
     const decodedOffer = JSON.parse(Buffer.from(offer, 'base64').toString());
-    if (Config.debug)
-      console.log("Joiner: Accepting initiator's offer:", decodedOffer);
+    if (Config.debug) console.log("Joiner: Accepting initiator's offer:", decodedOffer);
 
     try {
       this.peer.signal(decodedOffer);
@@ -71,9 +39,7 @@ export class Joiner {
   }
 
   public async awaitConnection(): Promise<void> {
-    if (!this.peer) {
-      throw new Error('Joiner: Peer not initialized.');
-    }
+    if (!this.peer) throw new Error('Joiner: Peer not initialized.');
 
     return new Promise((resolve) => {
       this.peer?.on('connect', () => {

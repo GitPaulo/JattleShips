@@ -2,7 +2,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { Config } from './config.ts';
 import { Game } from './core/game.ts';
-import { pressAnyKey } from './utils/prompts.js';
+import { pressAnyKey, promptStart } from './utils/prompts.js';
 
 async function main() {
   // Parse CLI arguments
@@ -17,11 +17,9 @@ async function main() {
 
   // Set debug mode in the global Config
   Config.debug = (argv as any).debug || false;
-
-  console.clear();
-  console.log('JattleShips!');
-
-  await pressAnyKey('Press ENTER key to continue...');
+  
+  // Prompt start
+  await promptStart();
 
   const game = new Game();
   await game.start();

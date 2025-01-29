@@ -2,9 +2,15 @@
 
 Node.JS battleships over webRTC to allow me to own my girlfriend whilst at work
 
+![img.png](img.png)
+
 ```sh
 npm install TODO
 ```
+
+## Preview
+
+TODO
 
 ## Dev
 
@@ -15,10 +21,10 @@ sudo apt-get update
 sudo apt-get install -y build-essential python3
 ```
 
-and then node-gyp which is a build tool for node,
+and then node-gyp (and pre) which is a build tool for node,
 
 ```sh
-npm install -g node-gyp node-pre-gy
+npm install -g node-gyp node-pre-gyp
 ```
 
 finally wrtc, which is the webRTC implementation for node,
@@ -32,3 +38,5 @@ npm install wrtc
 This makes sense, I swear
 
 ![alt text](plan.png)
+
+> this all changed, kinda
