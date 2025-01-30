@@ -1,8 +1,10 @@
+#!/usr/bin/env node
+
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
-import { Config } from './config.ts';
-import { Game } from './core/game.ts';
+import { Config } from './config.js';
+import { Game } from './core/game.js';
 import { promptStart } from './utils/prompts.js';
 
 async function main() {

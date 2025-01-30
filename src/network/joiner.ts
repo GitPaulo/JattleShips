@@ -1,5 +1,5 @@
-import { BasePeer } from './basePeer.ts';
-import { Config } from '../config.ts';
+import { BasePeer } from './basePeer.js';
+import { Config } from '../config.js';
 
 export class Joiner extends BasePeer {
   constructor() {

@@ -1,5 +1,6 @@
-import { Cell } from './board.ts';
 import chalk from 'chalk';
+
+import { Cell } from './board.js';
 
 export class FogBoard {
   private grid: Cell[][];

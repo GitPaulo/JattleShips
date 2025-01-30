@@ -1,15 +1,23 @@
 {
   "name": "jattleships",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.1",
   "description": "CLI battleships over webrtc to allow me to own my girlfriend whilst at work",
-  "main": "index.js",
+  "main": "./src/app.js",
+  "files": [
+    "./src/"
+  ],
+  "bin": {
+    "jattleships": "./src/app.js"
+  },
   "scripts": {
     "start": "node dist/app.js",
     "test": "node --loader ts-node/esm test/webrtc.test.ts",
-    "dev": "chokidar 'src/**/*.ts' -c 'node --loader ts-node/esm src/app.ts' --initial --verbose",
+    "dev": "node --loader ts-node/esm ./src/app.ts",
+    "watch": "chokidar 'src/**/*.ts' -c 'node --loader ts-node/esm src/app.ts' --initial --verbose",
     "debug": "chokidar 'src/**/*.ts' -c 'node --inspect-brk --loader ts-node/esm src/app.ts' --initial --verbose",
-    "build": "tsc"
+    "build": "tsc && cp package.json dist/",
+    "postbuild": "chmod +x dist/src/app.js"
   },
   "keywords": [],
   "author": "",

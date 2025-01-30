@@ -8,8 +8,8 @@ import {
   MessageType,
   ResponseHandler,
   WebRTCConnection,
-} from './webRTCConnection.ts';
-import { Config } from '../config.ts';
+} from './webRTCConnection.js';
+import { Config } from '../config.js';
 
 export abstract class BasePeer implements WebRTCConnection {
   protected peer: Peer.Instance | null = null;

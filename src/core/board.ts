@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+
 import { ShipType } from './ships.js';
 
 export type Cell =

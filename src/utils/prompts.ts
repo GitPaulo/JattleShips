@@ -1,6 +1,7 @@
 import prompts from 'prompts';
 import chalk from 'chalk';
 import clipboardy from 'clipboardy';
+
 import { ShipType } from '../core/ships.js';
 
 export async function promptStart(): Promise<void> {

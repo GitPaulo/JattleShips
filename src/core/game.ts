@@ -13,12 +13,12 @@ import {
   promptMainMenu,
   promptNextPlacement,
   promptShipPlacement,
-} from '../utils/prompts.ts';
-import { Player } from './player.ts';
-import { Initiator } from '../network/initiator.ts';
-import { Joiner } from '../network/joiner.ts';
-import { FogBoard } from './fogBoard.ts';
-import { Board } from './board.ts';
+} from '../utils/prompts.js';
+import { Player } from './player.js';
+import { Initiator } from '../network/initiator.js';
+import { Joiner } from '../network/joiner.js';
+import { FogBoard } from './fogBoard.js';
+import { Board } from './board.js';
 import { SHIP_CONFIG } from './ships.js';
 
 export enum GameState {
