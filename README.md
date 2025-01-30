@@ -40,3 +40,10 @@ This makes sense, I swear
 ![alt text](plan.png)
 
 > this all changed, kinda
+
+### TODO
+
+- Implement a smoother terminal experience
+- Save scores against player IDs locally
+- Improve share code experience
+- Error catch and validate inputs fully
