@@ -1,6 +1,6 @@
 # JattleShips
 
-Node.JS battleships over webRTC to allow me to own my girlfriend whilst at work
+Node.JS battleships over webRTC to allow me to own my girlfriend from anywhere
 
 ![img.png](img.png)
 
