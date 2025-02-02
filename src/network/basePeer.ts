@@ -13,11 +13,12 @@ import { Config } from '../config.js';
 
 export abstract class BasePeer implements WebRTCConnection {
   protected peer: Peer.Instance | null = null;
-  private messageHandlers: ((message: GameMessage) => void)[] = [];
+  protected messageHandlers: ((message: GameMessage) => void)[] = [];
+  
   private pendingResponses: Map<MessageType, ResponseHandler<any>[]> =
     new Map();
 
-  constructor() {}
+  protected constructor() {}
 
   protected initializePeer(initiator: boolean) {
     this.peer = new Peer({

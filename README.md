@@ -1,8 +1,8 @@
 # JattleShips
 
-Node.JS battleships over webRTC to allow me to own my girlfriend from anywhere
+Node.JS battleships over webRTC to allow me to own my girlfriend from anywhere with an internet connection.
 
-![img.png](img.png)
+![img_2.png](img_2.png)
 
 ```sh
 npm install TODO
@@ -10,7 +10,9 @@ npm install TODO
 
 ## Preview
 
-TODO
+![img_3.png](img_3.png)
+
+![img_1.png](img_1.png)
 
 ## Dev
 

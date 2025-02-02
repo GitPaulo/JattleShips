@@ -5,6 +5,10 @@ import chalk from 'chalk';
 import {
   countDownMessage,
   pressAnyKey,
+  printAttackResultHit,
+  printAttackResultMiss,
+  printAttackResultSunk,
+  printGameOver,
   printJoinCodePretty,
   promptAttackCoordinates,
   promptCopyToClipboard,
@@ -20,6 +24,7 @@ import { Joiner } from '../network/joiner.js';
 import { FogBoard } from './fogBoard.js';
 import { Board } from './board.js';
 import { SHIP_CONFIG } from './ships.js';
+import { Config } from '../config';
 
 export enum GameState {
   MENU = 'menu',
@@ -32,8 +37,8 @@ export enum GameState {
 export class Game {
   private state: GameState = GameState.MENU;
   private webrtc: Initiator | Joiner | null = null;
-  private hostPlayer: Player | null = null;
-  private joinPlayer: Player | null = null;
+  private localPlayer: Player | null = null;
+  private opponentPlayer: Player | null = null;
   private board: Board | null = null;
   private fogBoard: FogBoard | null = null;
   private gameOverWinner: string | null = null;
@@ -61,9 +66,28 @@ export class Game {
     }
   }
 
+  public getLocalPlayer(): Player | null {
+    return this.localPlayer;
+  }
+
+  public getOpponentPlayer(): Player | null {
+    return this.opponentPlayer;
+  }
+
   private async handleMenu() {
     const choice = await promptMainMenu();
-    this.webrtc = choice === 'host' ? new Initiator() : new Joiner();
+
+    switch (choice) {
+      case 'host':
+        this.webrtc = new Initiator();
+        break;
+      case 'join':
+        this.webrtc = new Joiner();
+        break;
+      case 'exit':
+        process.exit(0);
+    }
+
     this.state = GameState.CONNECTING;
   }
 
@@ -80,12 +104,12 @@ export class Game {
       await promptCopyToClipboard(offerCode);
 
       // Prompt for accept code and accept it
-      console.log(chalk.green('Waiting for answer from the joiner...'));
+      console.log(chalk.yellow("Enter the opponent's join code:"));
       const { joinCode: answerCode } = await promptJoinCode();
       this.webrtc.accept(answerCode);
     } else {
       // Prompt for user for offer code
-      console.log(chalk.yellow('Enter the offer code from the initiator:'));
+      console.log(chalk.yellow('Enter the join code from the host:'));
       const { joinCode: offerCode } = await promptJoinCode();
 
       // Accept offer code and prompt user to share answer code
@@ -106,12 +130,12 @@ export class Game {
     console.clear();
     const { playerName } = await promptForName();
     console.log(chalk.green(`Your name: ${playerName}`));
-    this.hostPlayer = new Player(playerName);
+    this.localPlayer = new Player(playerName);
     this.webrtc.sendMessage({ type: 'playerInfo', name: playerName });
 
     // Wait for opponent info and setup the game
     const opponentInfo = await opponentInfoPromise;
-    this.joinPlayer = new Player(opponentInfo.name);
+    this.opponentPlayer = new Player(opponentInfo.name);
     console.log(chalk.blue('Opponent connected:', opponentInfo.name));
 
     await countDownMessage(
@@ -123,44 +147,52 @@ export class Game {
 
   private async handleSetup() {
     if (!this.webrtc) throw new Error('Game: WebRTC not initialized.');
+
     console.clear();
     console.log(chalk.green('Starting the game...'));
 
-    this.board = new Board();
-    this.fogBoard = new FogBoard();
+    this.board = new Board(Config.boardSize, this);
+    this.fogBoard = new FogBoard(Config.boardSize, this);
 
     const opponentFinishedPromise =
       this.webrtc.waitForMessage<'shipPlacementReady'>('shipPlacementReady');
 
     for (const ship of SHIP_CONFIG) {
-      let remainingShips = ship.count;
-      while (remainingShips > 0) {
+      let isLastPlacement = ship === SHIP_CONFIG[SHIP_CONFIG.length - 1];
+      let remainingShipTypeCount = ship.count;
+
+      while (remainingShipTypeCount > 0) {
         console.clear();
         this.board.displayBoard();
         console.log(
           chalk.blueBright(
-            `Placing ${ship.name} (${remainingShips} remaining)...`
+            `Placing ${ship.name} (${remainingShipTypeCount} remaining)...`
           )
         );
+
         const { x, y, orientation } = await promptShipPlacement(ship);
         const colIndex = x.charCodeAt(0) - 'A'.charCodeAt(0);
         const rowIndex = y - 1;
-        if (this.board.placeShip(ship, colIndex, rowIndex, orientation)) {
-          console.log(chalk.green(`${ship.name} placed successfully!`));
-          remainingShips--;
-          let undoing = true;
-          while (undoing) {
-            const action = await promptNextPlacement();
-            if (action === 'undo' && this.board.undoLastPlacement()) {
-              console.log(chalk.red('Last placement undone.'));
-              remainingShips++;
-            } else {
-              undoing = false;
-            }
+
+        if (!this.board.placeShip(ship, colIndex, rowIndex, orientation))
+          continue;
+        console.clear();
+        console.log(chalk.green(`${ship.name} placed successfully!`));
+        this.board.displayBoard();
+        remainingShipTypeCount--;
+
+        while (remainingShipTypeCount < ship.count && !isLastPlacement) {
+          const action = await promptNextPlacement();
+          if (action === 'undo' && this.board.undoLastPlacement()) {
+            console.log(chalk.red('Last placement undone.'));
+            remainingShipTypeCount++;
+          } else {
+            break;
           }
         }
       }
     }
+
     console.log(chalk.blue('All ships placed. Waiting for opponent...'));
     this.webrtc.sendMessage({ type: 'shipPlacementReady' });
     await opponentFinishedPromise;
@@ -199,7 +231,7 @@ export class Game {
     if (this.board.allShipsSunk()) {
       this.webrtc?.sendMessage({
         type: 'gameOver',
-        winner: this.joinPlayer?.name || 'Unknown',
+        winner: this.opponentPlayer?.name || 'Unknown',
       });
       // send attack message in case of wait stuck
       this.webrtc?.sendMessage({ type: 'attack', x: 0, y: 0 });
@@ -245,27 +277,44 @@ export class Game {
 
     console.log(chalk.yellow("Waiting for opponent's move..."));
 
-    const attack = await this.webrtc.waitForMessage<'attack'>('attack');
-    const hitResult = this.board?.processAttack(attack.x, attack.y) ?? {
+    const opponentAttack = await this.webrtc.waitForMessage<'attack'>('attack');
+    const hitResult = this.board?.processAttack(
+      opponentAttack.x,
+      opponentAttack.y
+    ) ?? {
       hit: false,
       sunk: false,
     };
 
     this.webrtc.sendMessage({
       type: 'attackResult',
-      x: attack.x,
-      y: attack.y,
+      x: opponentAttack.x,
+      y: opponentAttack.y,
       hit: hitResult.hit,
       sunk: hitResult.sunk,
     });
 
+    const resultType = hitResult.sunk ? 'sunk' : hitResult.hit ? 'hit' : 'miss';
+    console.clear();
+    this.board.displayBoard();
+    switch (resultType) {
+      case 'hit':
+        await printAttackResultHit(opponentAttack);
+        break;
+      case 'sunk':
+        await printAttackResultSunk(opponentAttack);
+        break;
+      case 'miss':
+        await printAttackResultMiss(opponentAttack);
+        break;
+    }
+
     if (this.board?.allShipsSunk()) {
+      this.gameOverWinner = this.opponentPlayer?.name || 'Unknown';
       this.webrtc.sendMessage({
         type: 'gameOver',
-        winner: this.joinPlayer?.name || 'Unknown',
+        winner: this.gameOverWinner,
       });
-
-      console.log(chalk.magenta('Game Over! You lost.'));
       this.state = GameState.END;
       return;
     }
@@ -276,8 +325,7 @@ export class Game {
 
   private async handleEnd() {
     console.clear();
-    console.log(chalk.green('Game Over!'));
-    console.log(`Winner: ${this.gameOverWinner || 'Unknown'}`);
+    printGameOver(this.gameOverWinner || 'Unknown');
     console.log(chalk.blueBright('Thank you for playing JattleShips!'));
 
     await pressAnyKey('Press ENTER key to return to menu...');

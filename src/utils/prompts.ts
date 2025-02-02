@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import clipboardy from 'clipboardy';
 
 import { ShipType } from '../core/ships.js';
+import { GameMessage } from '../network/webRTCConnection';
 
 export async function promptStart(): Promise<void> {
   console.clear();
@@ -54,8 +55,7 @@ export async function promptJoinCode(): Promise<{ joinCode: string }> {
 }
 
 export function printJoinCodePretty(joinCode: string): void {
-  // Square border around it (it has multi lines)
-  console.log(chalk.blueBright('Share this code with your friend:'));
+  console.log('Share this code with your friend:');
   console.log(chalk.yellowBright('┌───'));
   console.log(chalk.yellow(joinCode));
   console.log(chalk.yellowBright('└───'));
@@ -152,30 +152,110 @@ export async function countDownMessage(
 
   for (let i = duration; i > 0; i--) {
     console.log(chalk.yellowBright(i.toString()));
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await sleep(1000);
   }
+}
+
+export async function sleep(duration: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, duration));
 }
 
 export async function promptAttackCoordinates(): Promise<{
   x: number;
   y: number;
 }> {
-  const { x, y } = await prompts([
-    {
-      type: 'text',
-      name: 'x',
-      message: 'Enter attack column (A-J):',
-      validate: (value) =>
-        /^[A-Ja-j]$/.test(value) ? true : 'Invalid column. Enter A-J.',
+  const { coordinates } = await prompts({
+    type: 'text',
+    name: 'coordinates',
+    message: 'Enter attack coordinates (e.g., A1 - J10):',
+    validate: (value) => {
+      const match = value.match(/^([A-Ja-j])([1-9]|10)$/);
+      return match ? true : 'Invalid format. Use A1-J10.';
     },
-    {
-      type: 'number',
-      name: 'y',
-      message: 'Enter attack row (1-10):',
-      validate: (value) =>
-        value >= 1 && value <= 10 ? true : 'Invalid row. Enter 1-10.',
-    },
-  ]);
+  });
 
-  return { x: x.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0), y: y - 1 };
+  const [, column, row] = coordinates.match(/^([A-Ja-j])([1-9]|10)$/) || [];
+  return {
+    x: column.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0), // Convert A-J to 0-9
+    y: parseInt(row, 10) - 1, // Convert 1-10 to 0-9
+  };
+}
+
+const padding = '    ';
+export function printBoardHeader(n: number) {
+  const header = Array.from({ length: n }, (_, i) =>
+    String.fromCharCode(65 + i)
+  ).join('  ');
+  console.log(`${padding}${header}`);
+  printBoardFooter(n);
+}
+
+export function printBoardFooter(n: number) {
+  console.log(`${' '.repeat(padding.length - 1)}${'-'.repeat(n*3 + 1)}`);
+}
+
+export async function printAttackResultHit(attack: GameMessage) {
+  if (attack.type !== 'attack')
+    throw new Error('Invalid attack message');
+  const asciiArt = `
+  ▗▖ ▗▖▗▄▄▄▖▗▄▄▄▖
+  ▐▌ ▐▌  █    █  
+  ▐▛▀▜▌  █    █  
+  ▐▌ ▐▌▗▄█▄▖  █ 
+`;
+  console.log(
+    chalk.bold(
+      `Attacked at ${String.fromCharCode(attack.x + 65)}${attack.y + 1}`
+    )
+  );
+  console.log(chalk.red(asciiArt));
+  await sleep(2000);
+}
+
+export async function printAttackResultMiss(attack: GameMessage) {
+  if (attack.type !== 'attack')
+    throw new Error('Invalid attack message');
+  const asciiArt = `
+  ▗▖  ▗▖▗▄▄▄▖ ▗▄▄▖ ▗▄▄▖
+  ▐▛▚▞▜▌  █  ▐▌   ▐▌   
+  ▐▌  ▐▌  █   ▝▀▚▖ ▝▀▚▖
+  ▐▌  ▐▌▗▄█▄▖▗▄▄▞▘▗▄▄▞▘
+`;
+  console.log(
+    chalk.bold(
+      `Attacked at ${String.fromCharCode(attack.x + 65)}${attack.y + 1}`
+    )
+  );
+  console.log(chalk.green(asciiArt));
+  await sleep(2000);
+}
+
+export async function printAttackResultSunk(attack: GameMessage) {
+  if (attack.type !== 'attack')
+    throw new Error('Invalid attack message');
+  const asciiArt = `
+   ▗▄▄▖▗▖ ▗▖▗▖  ▗▖▗▖ ▗▖
+  ▐▌   ▐▌ ▐▌▐▛▚▖▐▌▐▌▗▞▘
+   ▝▀▚▖▐▌ ▐▌▐▌ ▝▜▌▐▛▚▖ 
+  ▗▄▄▞▘▝▚▄▞▘▐▌  ▐▌▐▌ ▐▌
+`;
+  console.log(
+    chalk.bold(
+      `Attacked at ${String.fromCharCode(attack.x + 65)}${attack.y + 1}`
+    )
+  );
+  console.log(chalk.redBright(asciiArt));
+  await sleep(2000);
+}
+
+export function printGameOver(winner: string) {
+  const asciiArt = `
+   ▗▄▄▖ ▗▄▖ ▗▖  ▗▖▗▄▄▄▖     ▗▄▖ ▗▖  ▗▖▗▄▄▄▖▗▄▄▖ 
+  ▐▌   ▐▌ ▐▌▐▛▚▞▜▌▐▌       ▐▌ ▐▌▐▌  ▐▌▐▌   ▐▌ ▐▌
+  ▐▌▝▜▌▐▛▀▜▌▐▌  ▐▌▐▛▀▀▘    ▐▌ ▐▌▐▌  ▐▌▐▛▀▀▘▐▛▀▚▖
+  ▝▚▄▞▘▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖    ▝▚▄▞▘ ▝▚▞▘ ▐▙▄▄▖▐▌ ▐▌
+                                            
+`;
+  console.log(chalk.blue(asciiArt));
+  console.log(chalk.magenta(`Game Over! Winner: ${winner}`));
 }

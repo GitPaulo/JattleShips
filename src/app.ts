@@ -7,6 +7,10 @@ import { Config } from './config.js';
 import { Game } from './core/game.js';
 import { promptStart } from './utils/prompts.js';
 
+/**
+ * JattleShips!
+ *    by GitPaulo
+ */
 async function main() {
   // Parse CLI arguments
   const argv = yargs(hideBin(process.argv))

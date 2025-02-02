@@ -1,11 +1,20 @@
 import chalk from 'chalk';
 
 import { Cell } from './board.js';
+import { Game } from './game';
+import { printBoardFooter, printBoardHeader } from '../utils/prompts';
 
 export class FogBoard {
-  private grid: Cell[][];
+  private readonly grid: Cell[][];
+  private size: number;
+  private game: Game;
 
-  constructor(private size: number = 10) {
+  constructor(
+    size: number,
+    game: Game
+  ) {
+    this.size = size;
+    this.game = game;
     this.grid = Array.from({ length: size }, () => Array(size).fill('☁️'));
   }
 
@@ -21,10 +30,12 @@ export class FogBoard {
   }
 
   public displayFogBoard() {
-    console.log(chalk.blueBright('Your Opponents Board (Attack):'));
-    console.log('    A  B  C  D  E  F  G  H  I  J');
-    console.log('  -------------------------------');
-    
+    const opponentPlayer = this.game.getOpponentPlayer();
+    console.log(
+      chalk.blueBright(`Their Board (${opponentPlayer?.name}'s Attack):`)
+    );
+    printBoardHeader(this.size);
+
     for (let row = 0; row < 10; row++) {
       let rowDisplay = `${row + 1}`.padStart(2, ' ') + '| ';
 
@@ -35,6 +46,6 @@ export class FogBoard {
       console.log(rowDisplay);
     }
 
-    console.log('  -------------------------------');
+    printBoardFooter(this.size);
   }
 }

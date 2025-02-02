@@ -1,14 +1,16 @@
 import chalk from 'chalk';
 
 import { ShipType } from './ships.js';
+import { Game } from './game';
+import { printBoardFooter, printBoardHeader } from '../utils/prompts';
 
 export type Cell =
-  | '🌊'     // Ocean (empty water)
-  | '❌'     // Missed attack
-  | '✔️'    // Hit (ship is damaged but still afloat)
-  | '💀'     // Sunk ship (entire ship destroyed)
-  | '💥'     // Received hit (opponent hit a ship on this player's board)
-  | '☁️'    // Unknown cell (Fog Board only)
+  | '🌊' // Ocean (empty water)
+  | '❌' // Missed attack
+  | '✅' // Hit (ship is damaged but still afloat)
+  | '💀' // Sunk ship (entire ship destroyed)
+  | '💥' // Received hit (opponent hit a ship on this player's board)
+  | '☁️' // Unknown cell (Fog Board only)
   | string; // Ship ID (e.g., 'B1' for Battleship, 'S2' for Submarine)
 
 type PlacedShip = {
@@ -20,31 +22,33 @@ type PlacedShip = {
 };
 
 export class Board {
-  private grid: Cell[][] = [];
-  private placedShips: PlacedShip[] = []; // Stores ships in placement order
+  private readonly grid: Cell[][] = [];
+  private readonly placedShips: PlacedShip[] = []; // Stores ships in placement order
+  private size: number;
+  private game: Game;
 
-  constructor() {
-    // Initialize 10x10 grid with water (🌊)
-    this.grid = Array.from({ length: 10 }, () => Array(10).fill('🌊'));
+  constructor(size: number, game: Game) {
+    this.game = game;
+    this.size = size;
+    this.grid = Array.from({ length: size }, () => Array(size).fill('🌊'));
   }
 
   public displayBoard() {
-    console.clear(); // Clear screen for clean board updates
-    console.log(chalk.blueBright('Your Board (Defense):'));
-    console.log('    A  B  C  D  E  F  G  H  I  J');
-    console.log('  -------------------------------');
+    const localPlayer = this.game.getLocalPlayer();
+    console.log(chalk.blueBright(`Your Board (${localPlayer?.name}'s Defense):`));
+    printBoardHeader(this.size);
 
-    for (let row = 0; row < 10; row++) {
+    for (let row = 0; row < this.size; row++) {
       let rowDisplay = `${row + 1}`.padStart(2, ' ') + '| ';
 
-      for (let col = 0; col < 10; col++) {
+      for (let col = 0; col < this.size; col++) {
         rowDisplay += this.grid[row][col] + ' ';
       }
 
       console.log(rowDisplay);
     }
 
-    console.log('  -------------------------------');
+    printBoardFooter(this.size);
   }
 
   public placeShip(
@@ -60,18 +64,25 @@ export class Board {
     const shipId = this.placedShips.length; // Assign a unique ID based on placement order
     const positions: { x: number; y: number }[] = [];
 
-    // Place the ship
     for (let i = 0; i < ship.length; i++) {
       const row = orientation === 'horizontal' ? y : y + i;
       const col = orientation === 'horizontal' ? x + i : x;
-      this.grid[row][col] = ship.displayChar; // Store ship's display character
+
+      let symbol = ship.displayChar; // Default to the ship's display character
+      if (ship.length === 1) {
+        // Single-cell ships use ↔️ (horizontal) or ↕️ (vertical)
+        symbol = orientation === 'horizontal' ? '↔️' : '↕️';
+      } else if (i === 0) {
+        symbol = orientation === 'horizontal' ? '⬅️' : '⬆️'; // Left or Top boundary
+      } else if (i === ship.length - 1) {
+        symbol = orientation === 'horizontal' ? '➡️' : '⬇️'; // Right or Bottom boundary
+      }
+
+      this.grid[row][col] = symbol;
       positions.push({ x: col, y: row });
     }
 
-    // Store the ship placement
     this.placedShips.push({ id: shipId, ship, positions, hits: 0 });
-
-    this.displayBoard(); // Show updated board after placement
     return true;
   }
 
@@ -113,9 +124,9 @@ export class Board {
     return true;
   }
 
-    private markSunkenShips(): PlacedShip[] {
+  private markSunkenShips(): PlacedShip[] {
     const newlySunkShips: PlacedShip[] = [];
-    
+
     for (const ship of this.placedShips) {
       if (ship.hits === ship.ship.length && !ship.isSunk) {
         ship.isSunk = true;
@@ -126,11 +137,14 @@ export class Board {
         newlySunkShips.push(ship);
       }
     }
-    
+
     return newlySunkShips;
   }
 
-  processAttack(x: number, y: number): { hit: boolean; sunk: boolean; shipId?: string } {
+  processAttack(
+    x: number,
+    y: number
+  ): { hit: boolean; sunk: boolean; shipId?: string } {
     const cell = this.grid[y][x];
 
     if (cell === '🌊' || cell === '❌' || cell === '💀') {
@@ -141,23 +155,23 @@ export class Board {
     }
 
     // Find the ship at this position using array search
-    const shipAtPosition = this.placedShips.find(placed =>
-      placed.positions.some(pos => pos.x === x && pos.y === y)
+    const shipAtPosition = this.placedShips.find((placed) =>
+      placed.positions.some((pos) => pos.x === x && pos.y === y)
     );
 
     if (shipAtPosition) {
       shipAtPosition.hits++;
       this.markCell(x, y, '💥');
-      
+
       // Check for any newly sunk ships
       const sunkShips = this.markSunkenShips();
-      
+
       // If the ship we just hit was sunk, return its ID
       if (sunkShips.includes(shipAtPosition)) {
-        return { 
-          hit: true, 
-          sunk: true, 
-          shipId: shipAtPosition.ship.displayChar 
+        return {
+          hit: true,
+          sunk: true,
+          shipId: shipAtPosition.ship.displayChar,
         };
       }
 
@@ -168,9 +182,9 @@ export class Board {
   }
 
   allShipsSunk(): boolean {
-    return this.placedShips.every(ship => ship.hits === ship.ship.length);
+    return this.placedShips.every((ship) => ship.hits === ship.ship.length);
   }
-  
+
   markCell(x: number, y: number, value: Cell) {
     this.grid[y][x] = value;
   }
